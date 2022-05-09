@@ -12,5 +12,39 @@ service cloud.firestore {
     }
 
     // Add new rules here
+
+    // todos
+    match /todos/{todoId} {
+      // authenticated users can view and update/delete their todos
+      allow read, update, delete: if isAutheticated() && isAuthorOfDoc(resource.data.uid);
+      // authenticated users can create new todos for themselves
+      allow create: if isAutheticated() && isAuthorOfDoc(request.resource.data.uid);
+    }
+
+    // users
+    match /users/{userId} {
+      // authenticated users can view others' profiles and can create a profile
+      allow read, create: if isAutheticated();
+      allow update: 
+        if isAutheticated() && 
+        (isAuthorOfDoc(userId) || isAdmin()) && // users can edit their profiles OR admin can edit any profile
+        fieldUnchanged("isAdmin"); // noone can update 'isAdmin' field
+    }
+
+    function isAutheticated() {
+      return request.auth != null;
+    }
+
+    function isAuthorOfDoc(author) {
+      return author == request.auth.uid;
+    }
+
+    function isAdmin() {    
+     return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function fieldUnchanged(field) {    
+     return request.resource.data[field] == resource.data[field];
+    }
   }
 }
